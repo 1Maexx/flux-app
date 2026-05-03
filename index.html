@@ -469,8 +469,11 @@ async function sendMessage() {
     const data = await res.json();
     const raw = (data.content || []).map(b => b.text || '').join('');
     let parsed;
-    try { parsed = JSON.parse(raw.replace(/```json|```/g, '').trim()); }
-    catch { parsed = { message: raw, extracted_items: [], focus_suggestion: null }; }
+    try { 
+  const cleaned = raw.replace(/```json|```/g,'').trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {message: cleaned, extracted_items:[], focus_suggestion:null};
+}
 
     showScanOverlay(false);
     state.loading = false;
