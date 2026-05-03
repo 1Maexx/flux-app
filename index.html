@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="FLUX" />
+  <meta name="theme-color" content="#0A0A0F" />
+  <title>FLUX – Dein ADHS-Assistent</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0A0A0F; --surface: rgba(255,255,255,0.05); --surface2: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.07); --accent: #7C6EF7; --accent2: #4ECDC4;
+      --critical: #FF3B3B; --high: #FF8C00; --medium: #FFD700; --low: #4CAF50;
+      --text: #E8E8F0; --muted: #666;
+      --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
+    #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; max-width: 480px; margin: 0 auto; overflow: hidden; }
+    .ambient { position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(ellipse at 15% 5%, rgba(124,110,247,0.18) 0%, transparent 55%), radial-gradient(ellipse at 85% 95%, rgba(78,205,196,0.12) 0%, transparent 55%); }
+    .header { padding: calc(var(--safe-top) + 14px) 20px 12px; background: rgba(10,10,15,0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-bottom: 1px solid var(--border); position: relative; z-index: 10; flex-shrink: 0; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; color: #fff; letter-spacing: -1px; }
+    .logo span { color: var(--accent); }
+    .badges { display: flex; gap: 6px; align-items: center; }
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .badge-critical { background: var(--critical); color: #fff; }
+    .badge-count { background: var(--surface2); color: #aaa; }
+    .focus-bar { margin-top: 10px; padding: 9px 14px; background: linear-gradient(135deg, rgba(124,110,247,0.15), rgba(124,110,247,0.04)); border: 1px solid rgba(124,110,247,0.2); border-radius: 12px; font-size: 12px; color: #B8B0FF; line-height: 1.4; }
+    .nav { display: flex; gap: 2px; padding: 8px 12px; background: rgba(10,10,15,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); position: relative; z-index: 9; flex-shrink: 0; }
+    .nav-btn { flex: 1; padding: 8px 4px; border: none; border-radius: 10px; background: transparent; color: var(--muted); font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s; border-bottom: 2px solid transparent; }
+    .nav-btn.active { background: rgba(124,110,247,0.2); color: #B8B0FF; font-weight: 700; border-bottom-color: var(--accent); }
+    .content { flex: 1; overflow: hidden; position: relative; z-index: 1; display: flex; flex-direction: column; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; -webkit-overflow-scrolling: touch; }
+    .msg { display: flex; align-items: flex-end; gap: 8px; }
+    .msg.user { flex-direction: row-reverse; }
+    .msg-avatar { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+    .msg-bubble { max-width: 78%; padding: 11px 15px; font-size: 14px; line-height: 1.5; border-radius: 18px; word-break: break-word; }
+    .msg.assistant .msg-bubble { background: var(--surface2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    .msg.user .msg-bubble { background: linear-gradient(135deg, var(--accent), #5A4EDB); border-bottom-right-radius: 4px; box-shadow: 0 4px 15px rgba(124,110,247,0.3); }
+    .msg-time { font-size: 10px; color: rgba(255,255,255,0.25); margin-top: 4px; text-align: right; }
+    .msg-img { max-width: 100%; border-radius: 12px; margin-top: 6px; display: block; }
+    .typing { display: flex; gap: 4px; padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 18px 18px 18px 4px; width: fit-content; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: bounce 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; } .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,80%,100%{transform:scale(0.7);opacity:0.4} 40%{transform:scale(1);opacity:1} }
+    .chat-input-area { padding: 8px 14px calc(var(--safe-bottom) + 8px); background: rgba(10,10,15,0.95); backdrop-filter: blur(24px); border-top: 1px solid var(--border); flex-shrink: 0; }
+    .file-preview { display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-bottom: 8px; background: rgba(78,205,196,0.1); border: 1px solid rgba(78,205,196,0.2); border-radius: 12px; }
+    .file-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
+    .file-preview-info { flex: 1; min-width: 0; }
+    .file-preview-name { font-size: 12px; color: var(--accent2); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-preview-type { font-size: 10px; color: #666; margin-top: 1px; }
+    .file-remove { background: none; border: none; color: #555; cursor: pointer; font-size: 16px; flex-shrink: 0; }
+    .input-row { display: flex; gap: 8px; align-items: flex-end; }
+    .icon-btn { width: 42px; height: 42px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; background: var(--surface2); color: #888; }
+    .icon-btn.recording { background: linear-gradient(135deg,var(--critical),var(--high)); color:#fff; animation: pulse 1s infinite; }
+    .icon-btn.ready { background: linear-gradient(135deg, var(--accent), #5A4EDB); color:#fff; box-shadow: 0 4px 15px rgba(124,110,247,0.4); }
+    @keyframes pulse { 0%,100%{box-shadow:0 0 0 4px rgba(255,59,59,0.2)} 50%{box-shadow:0 0 0 8px rgba(255,59,59,0.1)} }
+    textarea.msg-input { flex: 1; padding: 11px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 22px; color: var(--text); font-size: 14px; font-family: 'DM Sans',sans-serif; resize: none; outline: none; line-height: 1.4; max-height: 96px; -webkit-appearance: none; }
+    textarea.msg-input::placeholder { color: #444; }
+    .rec-hint { text-align: center; font-size: 11px; color: var(--high); margin-top: 6px; }
+    .tasks-scroll { flex: 1; overflow-y: auto; padding: 14px; -webkit-overflow-scrolling: touch; }
+    .section-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 8px; margin-top: 16px; }
+    .section-label:first-child { margin-top: 0; }
+    .task-card { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; margin-bottom: 6px; background: var(--surface); border-radius: 14px; border-left: 3px solid transparent; }
+    .task-card.done { opacity: 0.4; }
+    .task-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--muted); background: transparent; color: #fff; font-size: 11px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; margin-top: 1px; }
+    .task-check.checked { background: var(--low); border-color: var(--low); }
+    .task-title { font-size: 13px; font-weight: 600; color: #ddd; line-height: 1.3; }
+    .task-title.striked { text-decoration: line-through; color: #555; }
+    .task-meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .prio-tag { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
+    .cal-btn { font-size: 10px; padding: 2px 8px; border-radius: 20px; background: rgba(78,205,196,0.12); color: var(--accent2); border: 1px solid rgba(78,205,196,0.2); cursor: pointer; font-family: 'DM Sans',sans-serif; font-weight: 600; }
+    .del-btn { background: none; border: none; color: #333; cursor: pointer; font-size: 13px; padding: 2px; margin-left: auto; }
+    .empty-state { text-align: center; padding: 50px 20px; }
+    .cal-scroll { flex: 1; overflow-y: auto; padding: 14px; -webkit-overflow-scrolling: touch; }
+    .cal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .cal-nav-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--surface2); border: none; color: #fff; font-size: 18px; cursor: pointer; }
+    .cal-month { font-family: 'Syne',sans-serif; font-size: 16px; font-weight: 700; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+    .cal-weekday { text-align: center; font-size: 10px; color: var(--muted); font-weight: 600; padding: 4px 0; }
+    .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 9px; }
+    .cal-day.has-items { background: rgba(124,110,247,0.1); border: 1px solid rgba(124,110,247,0.18); }
+    .cal-day.today { background: linear-gradient(135deg, var(--accent), #5A4EDB); }
+    .day-num { font-size: 13px; color: #bbb; }
+    .cal-day.today .day-num { color: #fff; font-weight: 800; }
+    .day-dots { display: flex; gap: 2px; margin-top: 2px; }
+    .day-dot { width: 4px; height: 4px; border-radius: 50%; }
+    .install-banner { margin: 10px 14px 0; padding: 12px 14px; background: linear-gradient(135deg, rgba(78,205,196,0.15), rgba(78,205,196,0.05)); border: 1px solid rgba(78,205,196,0.2); border-radius: 14px; font-size: 12px; color: #9EEAE5; line-height: 1.5; display: flex; gap: 10px; align-items: flex-start; }
+    .install-banner button { background: none; border: none; color: #9EEAE5; cursor: pointer; font-size: 16px; margin-left: auto; flex-shrink: 0; }
+    .toast { position: fixed; bottom: calc(var(--safe-bottom) + 90px); left: 50%; transform: translateX(-50%); background: rgba(30,30,40,0.95); border: 1px solid var(--border); backdrop-filter: blur(20px); padding: 10px 18px; border-radius: 30px; font-size: 13px; color: #ddd; z-index: 999; pointer-events: none; animation: toastIn 0.3s ease, toastOut 0.3s ease 2.5s forwards; max-width: 85vw; text-align: center; }
+    @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+    @keyframes toastOut { to{opacity:0} }
+    .scan-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+    .spin { width: 48px; height: 48px; border: 3px solid rgba(124,110,247,0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    ::-webkit-scrollbar { width: 3px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div class="ambient"></div>
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">FLUX <span>⚡</span></div>
+      <div class="badges">
+        <span class="badge badge-critical" id="badge-crit" style="display:none"></span>
+        <span class="badge badge-count" id="badge-count">0 offen</span>
+      </div>
+    </div>
+    <div class="focus-bar" id="focus-bar">🎯 Sag mir was heute ansteht!</div>
+  </div>
+  <div class="nav">
+    <button class="nav-btn active" onclick="switchView('chat')" id="nav-chat">💬 Chat</button>
+    <button class="nav-btn" onclick="switchView('tasks')" id="nav-tasks">✅ Aufgaben</button>
+    <button class="nav-btn" onclick="switchView('calendar')" id="nav-cal">📅 Kalender</button>
+  </div>
+  <div class="install-banner" id="install-banner">
+    <span>📲</span>
+    <span><strong>Als App:</strong> Teilen ↑ → Zum Home-Bildschirm</span>
+    <button onclick="document.getElementById('install-banner').remove()">✕</button>
+  </div>
+  <div class="content">
+    <div id="view-chat" style="display:flex;flex-direction:column;height:100%">
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-area">
+        <div id="file-preview" style="display:none"></div>
+        <div class="input-row">
+          <button class="icon-btn" id="mic-btn" onclick="toggleMic()">🎙</button>
+          <button class="icon-btn" onclick="document.getElementById('file-inp').click()">📎</button>
+          <input type="file" id="file-inp" accept="image/*,.pdf" style="display:none" onchange="onFileSelect(event)" />
+          <textarea class="msg-input" id="msg-inp" rows="1" placeholder="Schreib, sprich oder lade Foto/PDF hoch…" oninput="onInputChange()" onkeydown="onKeyDown(event)"></textarea>
+          <button class="icon-btn" id="send-btn" onclick="sendMsg()">↑</button>
+        </div>
+        <div class="rec-hint" id="rec-hint" style="display:none">🔴 Aufnahme läuft…</div>
+      </div>
+    </div>
+    <div id="view-tasks" style="display:none;flex-direction:column;height:100%">
+      <div class="tasks-scroll" id="tasks-list"></div>
+    </div>
+    <div id="view-calendar" style="display:none;flex-direction:column;height:100%">
+      <div class="cal-scroll">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+          <div class="cal-month" id="cal-label"></div>
+          <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div id="cal-upcoming" style="margin-top:20px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────
+const PRIO = {
+  critical:{ label:'Kritisch', color:'#FF3B3B', bg:'rgba(255,59,59,0.15)', icon:'🔥' },
+  high:    { label:'Hoch',     color:'#FF8C00', bg:'rgba(255,140,0,0.15)',  icon:'⚡' },
+  medium:  { label:'Mittel',   color:'#FFD700', bg:'rgba(255,215,0,0.15)',  icon:'📌' },
+  low:     { label:'Niedrig',  color:'#4CAF50', bg:'rgba(76,175,80,0.15)', icon:'💤' },
+};
+const TICON = { task:'✅', event:'📅', birthday:'🎂', reminder:'🔔' };
+
+const SYS = `Du bist FLUX, ein freundlicher ADHS-Organisationsassistent.
+Antworte IMMER NUR mit einem einzigen validen JSON-Objekt. Kein Text davor oder danach. Kein Markdown.
+Format:
+{"message":"Deine Antwort auf Deutsch (max 2 Sätze)","extracted_items":[{"type":"task|event|birthday|reminder","title":"Titel","date":"YYYY-MM-DD oder null","time":"HH:MM oder null","priority":"critical|high|medium|low","notes":"Details oder null"}],"focus_suggestion":"Was soll die Person jetzt tun"}
+Priorität: critical=heute/morgen/dringend, high=diese Woche, medium=dieser Monat, low=irgendwann.
+Extrahiere ALLE Termine, Aufgaben, Geburtstage aus der Nachricht.`;
+
+const SYS_FILE = `Du bist FLUX, ein freundlicher ADHS-Organisationsassistent. Analysiere das Dokument/Bild.
+Antworte IMMER NUR mit einem einzigen validen JSON-Objekt. Kein Text davor oder danach. Kein Markdown.
+Format:
+{"message":"Kurze Zusammenfassung was das Dokument ist (2-3 Sätze)","extracted_items":[{"type":"task|event|birthday|reminder","title":"Titel","date":"YYYY-MM-DD oder null","time":"HH:MM oder null","priority":"critical|high|medium|low","notes":"Details oder null"}],"focus_suggestion":"Was muss der Nutzer als erstes tun"}
+Extrahiere ALLE Termine, Fristen, Aufgaben, Anforderungen aus dem Dokument.`;
+
+// ─── STATE ────────────────────────────────────────────────
+let S = { msgs:[], items:[], done:new Set(), calMonth:new Date(), recording:false, loading:false, pendingFile:null };
+try { const d=JSON.parse(localStorage.getItem('flux4')||'{}'); S.msgs=d.msgs||[]; S.items=d.items||[]; S.done=new Set(d.done||[]); } catch(e){}
+
+function save() {
+  try { localStorage.setItem('flux4', JSON.stringify({msgs:S.msgs.slice(-40), items:S.items, done:[...S.done]})); } catch(e){}
+}
+
+// ─── VIEWS ────────────────────────────────────────────────
+function switchView(v) {
+  ['chat','tasks','calendar'].forEach(id => {
+    document.getElementById('view-'+(id==='calendar'?'calendar':id)).style.display = 'none';
+    document.getElementById('nav-'+(id==='calendar'?'cal':id)).classList.remove('active');
+  });
+  document.getElementById('view-'+v).style.display = 'flex';
+  document.getElementById('nav-'+(v==='calendar'?'cal':v)).classList.add('active');
+  if(v==='tasks') renderTasks();
+  if(v==='calendar') renderCal();
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+function init() {
+  if(!S.msgs.length) {
+    S.msgs.push({role:'assistant', content:'Hey! Ich bin FLUX 🧠⚡\n\nSchreib mir, sprich mit mir, oder lade ein Foto/PDF hoch – ich ziehe automatisch alle Termine und Aufgaben raus!', t:Date.now()});
+  }
+  renderMsgs();
+  updateBadges();
+  if(window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+    const b=document.getElementById('install-banner'); if(b)b.remove();
+  }
+  setupSpeech();
+}
+
+// ─── MESSAGES ─────────────────────────────────────────────
+function renderMsgs() {
+  const el = document.getElementById('chat-messages');
+  el.innerHTML = S.msgs.map(m => {
+    const t = new Date(m.t).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    let inner = `<div class="msg-bubble">${esc(m.content)}</div>`;
+    if(m.img) inner = `<div class="msg-bubble"><img class="msg-img" src="data:${m.imgType};base64,${m.img}" /></div>`;
+    if(m.file) inner += `<div style="font-size:11px;color:#666;margin-top:4px">📄 ${esc(m.file)}</div>`;
+    return m.role==='assistant'
+      ? `<div class="msg assistant"><div class="msg-avatar">⚡</div><div>${inner}<div class="msg-time">${t}</div></div></div>`
+      : `<div class="msg user"><div>${inner}<div class="msg-time">${t}</div></div></div>`;
+  }).join('');
+  if(S.loading) el.innerHTML += `<div class="msg assistant"><div class="msg-avatar">⚡</div><div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+// ─── INPUT ────────────────────────────────────────────────
+function onInputChange() {
+  const el = document.getElementById('msg-inp');
+  el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,96)+'px';
+  updateSendBtn();
+}
+function updateSendBtn() {
+  const hasText = document.getElementById('msg-inp').value.trim();
+  document.getElementById('send-btn').className = 'icon-btn' + (hasText||S.pendingFile?' ready':'');
+}
+function onKeyDown(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();} }
+
+// ─── FILE ─────────────────────────────────────────────────
+async function onFileSelect(e) {
+  const file = e.target.files[0]; e.target.value='';
+  if(!file) return;
+  if(!file.type.startsWith('image/') && file.type!=='application/pdf') { showToast('Nur Bilder und PDFs'); return; }
+  const b64 = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); });
+  S.pendingFile = { name:file.name, type:file.type, b64, isImg:file.type.startsWith('image/') };
+  const pa = document.getElementById('file-preview');
+  pa.style.display = 'block';
+  pa.innerHTML = `<div class="file-preview">
+    ${S.pendingFile.isImg ? `<img src="data:${file.type};base64,${b64}" style="width:40px;height:40px;object-fit:cover;border-radius:6px" />` : `<div style="width:40px;height:40px;background:rgba(255,59,59,0.15);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:20px">📄</div>`}
+    <div class="file-preview-info"><div class="file-preview-name">${esc(file.name)}</div><div class="file-preview-type">${S.pendingFile.isImg?'Bild':'PDF'} – wird analysiert</div></div>
+    <button class="file-remove" onclick="clearFile()">✕</button>
+  </div>`;
+  updateSendBtn();
+}
+function clearFile() {
+  S.pendingFile=null;
+  document.getElementById('file-preview').style.display='none';
+  document.getElementById('file-preview').innerHTML='';
+  updateSendBtn();
+}
+
+// ─── SEND ─────────────────────────────────────────────────
+async function sendMsg() {
+  const inp = document.getElementById('msg-inp');
+  const text = inp.value.trim();
+  const file = S.pendingFile;
+  if(!text && !file) return;
+  if(S.loading) return;
+
+  inp.value=''; inp.style.height='auto';
+  const userMsg = { role:'user', content:text||(file.isImg?'🖼 Bild':'📄 '+file.name), t:Date.now() };
+  if(file?.isImg) { userMsg.img=file.b64; userMsg.imgType=file.type; userMsg.content=text||''; }
+  if(file && !file.isImg) { userMsg.file=file.name; userMsg.content=text||''; }
+  S.msgs.push(userMsg);
+  clearFile();
+  S.loading=true;
+  renderMsgs();
+  if(file) showScan(true);
+
+  try {
+    let messages;
+    if(file) {
+      const uc = [];
+      if(file.isImg) uc.push({type:'image',source:{type:'base64',media_type:file.type,data:file.b64}});
+      else uc.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:file.b64}});
+      uc.push({type:'text',text:text||'Analysiere dieses Dokument und extrahiere alle Termine und Aufgaben.'});
+      messages = [{role:'user',content:uc}];
+    } else {
+      messages = S.msgs.slice(-14).map(m=>({role:m.role,content:m.content||'...'}));
+    }
+
+    const res = await fetch('/.netlify/functions/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1500, system:file?SYS_FILE:SYS, messages })
+    });
+
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    
+    // ── ROBUST JSON PARSING ──
+    const rawText = (data.content||[]).map(b=>b.text||'').join('').trim();
+    let parsed = null;
+    
+    // Try 1: direct parse
+    try { parsed = JSON.parse(rawText); } catch(_) {}
+    
+    // Try 2: extract JSON object from text
+    if(!parsed) {
+      const m = rawText.match(/\{[\s\S]*\}/);
+      if(m) try { parsed = JSON.parse(m[0]); } catch(_) {}
+    }
+    
+    // Try 3: strip markdown fences
+    if(!parsed) {
+      const cleaned = rawText.replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'').trim();
+      try { parsed = JSON.parse(cleaned); } catch(_) {}
+    }
+
+    // Fallback
+    if(!parsed || typeof parsed !== 'object') {
+      parsed = { message: rawText || 'Ich habe das notiert!', extracted_items:[], focus_suggestion:null };
+    }
+
+    showScan(false);
+    S.loading=false;
+    S.msgs.push({role:'assistant', content:parsed.message||'Notiert!', t:Date.now()});
+
+    if(parsed.focus_suggestion) document.getElementById('focus-bar').textContent='🎯 '+parsed.focus_suggestion;
+
+    const newItems = (parsed.extracted_items||[]).filter(i=>i&&i.title).map(i=>({
+      ...i, id:Date.now()+'_'+Math.random().toString(36).slice(2), created:Date.now()
+    }));
+    if(newItems.length) {
+      S.items = [...S.items, ...newItems].sort((a,b)=>({critical:0,high:1,medium:2,low:3}[a.priority]||3)-({critical:0,high:1,medium:2,low:3}[b.priority]||3));
+      updateBadges();
+      showToast('✅ '+newItems.length+' Aufgabe'+(newItems.length>1?'n':'')+' erkannt!');
+    }
+    save();
+    renderMsgs();
+  } catch(err) {
+    showScan(false);
+    S.loading=false;
+    S.msgs.push({role:'assistant', content:'Verbindungsfehler ('+err.message+') – versuch nochmal! 🔄', t:Date.now()});
+    renderMsgs();
+  }
+}
+
+// ─── SPEECH ───────────────────────────────────────────────
+let recog = null;
+function setupSpeech() {
+  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR) return;
+  recog = new SR(); recog.lang='de-DE'; recog.continuous=false; recog.interimResults=false;
+  recog.onresult = e => { document.getElementById('msg-inp').value+=e.results[0][0].transcript; onInputChange(); stopMic(); };
+  recog.onerror = recog.onend = stopMic;
+}
+function stopMic() { S.recording=false; document.getElementById('mic-btn').className='icon-btn'; document.getElementById('rec-hint').style.display='none'; }
+function toggleMic() {
+  if(!recog){showToast('Spracherkennung nicht verfügbar');return;}
+  if(S.recording){recog.stop();}
+  else{recog.start();S.recording=true;document.getElementById('mic-btn').className='icon-btn recording';document.getElementById('rec-hint').style.display='block';}
+}
+
+// ─── TASKS ────────────────────────────────────────────────
+function renderTasks() {
+  const c = document.getElementById('tasks-list');
+  const active = S.items.filter(i=>!S.done.has(i.id));
+  const done = S.items.filter(i=>S.done.has(i.id));
+  const urgent = active.filter(i=>daysUntil(i.date)!==null&&daysUntil(i.date)<=1);
+  let h='';
+  if(urgent.length){h+=`<div class="section-label" style="color:#FF8C00">🎯 Heute & Morgen</div>`;urgent.forEach(i=>h+=taskHTML(i,false));}
+  ['critical','high','medium','low'].forEach(p=>{
+    const g=active.filter(i=>i.priority===p&&!urgent.find(u=>u.id===i.id));
+    if(!g.length)return;
+    h+=`<div class="section-label" style="color:${PRIO[p].color}">${PRIO[p].icon} ${PRIO[p].label}</div>`;
+    g.forEach(i=>h+=taskHTML(i,false));
+  });
+  if(!active.length) h+=`<div class="empty-state"><div style="font-size:44px;margin-bottom:12px">✨</div><div style="color:#666;font-size:15px;font-weight:600">Alles erledigt!</div><div style="color:#444;font-size:13px;margin-top:8px">Sag mir was als nächstes ansteht oder lade ein Dokument hoch.</div></div>`;
+  if(done.length){h+=`<div class="section-label" style="color:#333;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.04)">✅ Erledigt (${done.length})</div>`;done.forEach(i=>h+=taskHTML(i,true));}
+  c.innerHTML=h;
+}
+
+function taskHTML(item, isDone) {
+  const p=PRIO[item.priority]||PRIO.low, ic=TICON[item.type]||'📌';
+  const du=daysUntil(item.date);
+  const dcls=du===0?'style="color:var(--critical)"':du===1?'style="color:var(--high)"':'';
+  const dl=item.date?`<span ${dcls}>📅 ${fmtDate(item.date)}${item.time?' '+item.time:''}${du===0?' 🔥':du===1?' ⚡':''}</span>`:'';
+  const cb=item.date?`<button class="cal-btn" onclick="addToCal('${item.id}')">+ Kalender</button>`:'';
+  return `<div class="task-card ${isDone?'done':''}" style="border-left-color:${isDone?'#222':p.color}">
+    <button class="task-check ${isDone?'checked':''}" onclick="toggleDone('${item.id}')" style="border-color:${isDone?'#4CAF50':p.color}">${isDone?'✓':''}</button>
+    <div style="flex:1;min-width:0">
+      <div class="task-title ${isDone?'striked':''}">${ic} ${esc(item.title)}</div>
+      <div class="task-meta">${dl}${item.notes?`<span>${esc(item.notes)}</span>`:''}${cb}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:4px">
+      <span class="prio-tag" style="background:${p.bg};color:${p.color}">${p.icon} ${p.label}</span>
+      <button class="del-btn" onclick="delItem('${item.id}')">✕</button>
+    </div>
+  </div>`;
+}
+
+function toggleDone(id){if(S.done.has(id))S.done.delete(id);else S.done.add(id);save();updateBadges();renderTasks();}
+function delItem(id){S.items=S.items.filter(i=>i.id!==id);S.done.delete(id);save();updateBadges();renderTasks();renderCal();}
+
+// ─── CALENDAR ─────────────────────────────────────────────
+function addToCal(id) {
+  const item=S.items.find(i=>i.id===id); if(!item||!item.date)return;
+  const ds=item.date.replace(/-/g,''), now=new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  let dtstart,dtend;
+  if(item.time){const[h,m]=item.time.split(':');dtstart=`DTSTART:${ds}T${h}${m}00`;const e=new Date(item.date+'T'+item.time+':00');e.setHours(e.getHours()+1);dtend=`DTEND:${ds}T${String(e.getHours()).padStart(2,'0')}${String(e.getMinutes()).padStart(2,'0')}00`;}
+  else{dtstart=`DTSTART;VALUE=DATE:${ds}`;const n=new Date(item.date+'T00:00:00');n.setDate(n.getDate()+1);dtend=`DTEND;VALUE=DATE:${n.toISOString().slice(0,10).replace(/-/g,'')}`;}
+  const alarm=item.type==='birthday'?1440:60;
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//FLUX//DE','CALSCALE:GREGORIAN','METHOD:PUBLISH',
+    'BEGIN:VEVENT',`UID:${item.id}@flux`,`DTSTAMP:${now}`,dtstart,dtend,`SUMMARY:${item.title}`,
+    item.notes?`DESCRIPTION:${item.notes}`:'',item.type==='birthday'?'RRULE:FREQ=YEARLY':'',
+    'BEGIN:VALARM',`TRIGGER:-PT${alarm}M`,'ACTION:DISPLAY',`DESCRIPTION:🔔 ${item.title}`,'END:VALARM',
+    'END:VEVENT','END:VCALENDAR'].filter(Boolean).join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'}));
+  a.download=item.title.replace(/\s+/g,'_')+'.ics'; a.click();
+  showToast('📅 Datei öffnen → zu Apple Kalender hinzufügen!');
+}
+
+function renderCal() {
+  const y=S.calMonth.getFullYear(), mo=S.calMonth.getMonth();
+  document.getElementById('cal-label').textContent=S.calMonth.toLocaleDateString('de-DE',{month:'long',year:'numeric'});
+  const fd=new Date(y,mo,1).getDay(), off=(fd+6)%7, dim=new Date(y,mo+1,0).getDate(), td=new Date();
+  let g=['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=>`<div class="cal-weekday">${d}</div>`).join('');
+  for(let i=0;i<off;i++)g+='<div></div>';
+  for(let d=1;d<=dim;d++){
+    const ds=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const di=S.items.filter(i=>i.date===ds);
+    const it=d===td.getDate()&&mo===td.getMonth()&&y===td.getFullYear();
+    const dots=di.slice(0,3).map(i=>`<div class="day-dot" style="background:${(PRIO[i.priority]||PRIO.low).color}"></div>`).join('');
+    g+=`<div class="cal-day${it?' today':''}${di.length&&!it?' has-items':''}"><div class="day-num">${d}</div>${dots?`<div class="day-dots">${dots}</div>`:''}</div>`;
+  }
+  document.getElementById('cal-grid').innerHTML=g;
+  const up=S.items.filter(i=>i.date&&daysUntil(i.date)>=0&&!S.done.has(i.id)).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
+  let uh=`<div class="section-label" style="color:#555">📅 Demnächst</div>`;
+  if(!up.length)uh+=`<div style="color:#333;font-size:13px;text-align:center;padding:20px">Noch keine Termine</div>`;
+  else up.forEach(item=>{
+    const p=PRIO[item.priority]||PRIO.low,du=daysUntil(item.date),dl=du===0?'Heute':du===1?'Morgen':du+'d';
+    uh+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:5px;background:rgba(255,255,255,0.04);border-radius:12px;border-left:3px solid ${p.color}">
+      <div style="font-size:18px">${TICON[item.type]||'📌'}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#ddd">${esc(item.title)}</div><div style="font-size:11px;color:#666;margin-top:2px">${fmtDate(item.date)}${item.time?' · '+item.time:''}</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <span style="font-size:10px;padding:2px 8px;border-radius:20px;background:${p.bg};color:${p.color};font-weight:700">${dl}</span>
+        <button class="cal-btn" onclick="addToCal('${item.id}')">+ Kalender</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('cal-upcoming').innerHTML=uh;
+}
+function changeMonth(d){S.calMonth=new Date(S.calMonth.getFullYear(),S.calMonth.getMonth()+d,1);renderCal();}
+
+// ─── UTILS ────────────────────────────────────────────────
+function daysUntil(ds){if(!ds)return null;const d=new Date(ds+'T00:00:00'),t=new Date();t.setHours(0,0,0,0);return Math.floor((d-t)/86400000);}
+function fmtDate(ds){if(!ds)return'';const du=daysUntil(ds);if(du===0)return'Heute';if(du===1)return'Morgen';if(du===-1)return'Gestern';const d=new Date(ds+'T00:00:00');if(du>0&&du<7)return d.toLocaleDateString('de-DE',{weekday:'long'});return d.toLocaleDateString('de-DE',{day:'numeric',month:'short'});}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
+function updateBadges(){
+  const a=S.items.filter(i=>!S.done.has(i.id)),c=a.filter(i=>i.priority==='critical');
+  const cb=document.getElementById('badge-crit');cb.style.display=c.length?'inline-block':'none';cb.textContent=`🔥 ${c.length} kritisch`;
+  document.getElementById('badge-count').textContent=`${a.length} offen`;
+  document.getElementById('nav-tasks').textContent=`✅ Aufgaben${a.length?' ('+a.length+')':''}`;
+}
+function showToast(msg){const o=document.querySelector('.toast');if(o)o.remove();const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000);}
+function showScan(show){const o=document.getElementById('scan-ov');if(show&&!o){const d=document.createElement('div');d.id='scan-ov';d.className='scan-overlay';d.innerHTML=`<div class="spin"></div><div style="color:#B8B0FF;font-size:14px;font-weight:600">Analysiere…</div><div style="color:#555;font-size:12px">KI liest Termine und Aufgaben raus</div>`;document.body.appendChild(d);}else if(!show&&o)o.remove();}
+
+init();
+</script>
+</body>
+</html>
