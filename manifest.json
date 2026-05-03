@@ -1,0 +1,10 @@
+{
+  "name": "FLUX – Dein ADHS-Assistent",
+  "short_name": "FLUX",
+  "description": "Persönlicher KI-Organisationsassistent für ADHS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0F",
+  "theme_color": "#0A0A0F",
+  "orientation": "portrait"
+}
